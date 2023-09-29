@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Setting up the Xilinx KV260 | Kyle’s code attic</title>
+<meta name="generator" content="Jekyll v3.9.3" />
+<meta property="og:title" content="Setting up the Xilinx KV260" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Xilinx KV260 The KV260 is a relatively recent (2021) Xilinx product based on the Zynq Ultrascale family, chips with Cortex-A53 processors and a variable amount of logic elements." />
+<meta property="og:description" content="Xilinx KV260 The KV260 is a relatively recent (2021) Xilinx product based on the Zynq Ultrascale family, chips with Cortex-A53 processors and a variable amount of logic elements." />
+<link rel="canonical" href="http://localhost:4000/xilinx/kv260/edge_ai/2023/09/28/kv260.html" />
+<meta property="og:url" content="http://localhost:4000/xilinx/kv260/edge_ai/2023/09/28/kv260.html" />
+<meta property="og:site_name" content="Kyle’s code attic" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-09-28T17:37:00-10:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Setting up the Xilinx KV260" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2023-09-28T17:37:00-10:00","datePublished":"2023-09-28T17:37:00-10:00","description":"Xilinx KV260 The KV260 is a relatively recent (2021) Xilinx product based on the Zynq Ultrascale family, chips with Cortex-A53 processors and a variable amount of logic elements.","headline":"Setting up the Xilinx KV260","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/xilinx/kv260/edge_ai/2023/09/28/kv260.html"},"url":"http://localhost:4000/xilinx/kv260/edge_ai/2023/09/28/kv260.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Kyle&apos;s code attic" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Kyle&#39;s code attic</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Setting up the Xilinx KV260</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-09-28T17:37:00-10:00" itemprop="datePublished">Sep 28, 2023
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h1 id="xilinx-kv260">Xilinx KV260</h1>
+<p>The KV260 is a relatively recent (2021) Xilinx product based on the Zynq Ultrascale
+family, chips with Cortex-A53 processors and a variable amount of logic elements.</p>
+
+<p>That being said, the Kria SOMs and their ecosystem are a bit unique compared to Xilinx’s
+historical offerings for a few reasons.</p>
+<ul>
+  <li>Premade Ubuntu LTS rootfs and Xilinx PPAs for additional software</li>
+  <li>Premade FPGA firmware images with the DPU (that’s their ML accelerator IP) embedded</li>
+  <li>Basic GPU and video codecs present</li>
+  <li>Unusually low price of ~$250 for the developer kit, for a similar feature set to
+the more expensive Ultrascale+ EV</li>
+</ul>
+
+<p>Although it can be used like any other Xilinx product with Vivado, Petalinux, etc, and
+probably could serve as a great platform for getting a decently sized FPGA cheaply, the
+Kria modules definitely feel more geared towards software developers trying to deploy
+ML vision models, or anyone more familiar with single board computers like the Pi.
+I’m not sure if it really competes with the Tegra family in practice since its compute
+throughput is much lower but it seems aimed at the same use case.</p>
+
+<p>I bought a KV260 devkit when it released back in 2021 while thinking of all the interesting
+projects I could use it for, but as things often do, it went unused.
+Now that the Ryzen 7040 mobile chips with XDNA AI accelerators have come out, and AMD
+has <a href="https://github.com/amd/RyzenAI-cloud-to-client-demo">published some sample code</a>, I’ve decided to dust off the Kria and try to make use of Vitis AI in anticipation of a Linux
+port of the Ryzen AI SDK (plz AMD).</p>
+
+<p>Anyway, to get started, pull up the <a href="https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/index.html">Kria docs</a> in a tab, and read on.
+The Xilinx atlassian wiki shows up a lot in search results but looks out of sync on some points,
+so the linked site seems to be most up to date.</p>
+
+<h2 id="running-the-nlp-smartcamera-application">Running the NLP smartcamera application</h2>
+<p>Here are the condensed instructions to get up and running. The info here is all available in
+their official docs, but it’s scattered across several pages on different sites.</p>
+<ul>
+  <li>Flash the <a href="https://ubuntu.com/download/amd">KV260 ubuntu 22.04 image</a> onto an SD card</li>
+  <li>Login with User: ubuntu, Password: ubuntu. You’ll be asked to change it.</li>
+  <li><code class="language-plaintext highlighter-rouge">sudo systemctl stop unattended-upgrades.service; sudo apt-get purge unattended-upgrades</code>
+    <ul>
+      <li>If you leave this service enabled, you might be waiting a long time.</li>
+    </ul>
+  </li>
+  <li><code class="language-plaintext highlighter-rouge">systemctl restart systemd-resolved</code> b/c DNS didn’t start for some reason.</li>
+  <li><code class="language-plaintext highlighter-rouge">sudo snap install xlnx-config --classic --channel=2.x</code></li>
+  <li><code class="language-plaintext highlighter-rouge">sudo xlnx-config.sysinit</code>
+    <ul>
+      <li><a href="https://xilinx.github.io/kria-apps-docs/kr260/build/html/docs/kria_starterkit_linux_boot.html">If you get an error flashing kernel, just try again apparently…</a></li>
+    </ul>
+  </li>
+  <li><code class="language-plaintext highlighter-rouge">sudo apt install xlnx-firmware-kv260-nlp-smartvision</code>
+    <ul>
+      <li>AFAICT <a href="https://github.com/Xilinx/kria-apps-firmware/tree/main/k26-dfx/2rp">this is the repo that package is built from</a></li>
+    </ul>
+  </li>
+  <li><a href="https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/nlp-smartvision/docs/app_deployment_nlp.html">Now following the instructions for the nlp-smartcamera…</a>
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">sudo xmutil listapps</code></li>
+      <li><code class="language-plaintext highlighter-rouge">sudo xmutil unloadapp</code></li>
+      <li><code class="language-plaintext highlighter-rouge">sudo xmutil loadapp kv260-nlp-smartvision</code></li>
+      <li><code class="language-plaintext highlighter-rouge">sudo apt install docker.io</code> and <code class="language-plaintext highlighter-rouge">sudo usermod -aG docker ubuntu</code></li>
+      <li><code class="language-plaintext highlighter-rouge">docker pull xilinx/nlp-smartvision:2022.1</code> This container is &gt;1GB.</li>
+      <li>
+        <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run \
+    --env="DISPLAY" \
+    -h "xlnx-docker" \
+    --env="XDG_SESSION_TYPE" \
+    --net=host \
+    --privileged \
+    -v /tmp:/tmp \
+    -v /dev:/dev \
+    -v /sys:/sys \
+    -v /etc/vart.conf:/etc/vart.conf \
+    -v /lib/firmware/xilinx:/lib/firmware/xilinx \
+    -v /run:/run \
+    -it xilinx/nlp-smartvision:2022.1 bash
+</code></pre></div>        </div>
+      </li>
+      <li>Finally, get a random jpg online with some everyday objects in it, copy it
+to one of the paths mounted in the container like <code class="language-plaintext highlighter-rouge">/tmp</code>and try:
+<code class="language-plaintext highlighter-rouge">nlp-smartvision --test /tmp/pic.jpg yolov2_voc_pruned_0_77</code> in the container!</li>
+    </ul>
+  </li>
+</ul>
+
+<p>The purpose of loading one of Xilinx’s demo apps is to get the DPU, their ML accelerator
+into the SoC’s FPGA fabric. The DPU isn’t tied to a single model, so it should be possible
+to deploy our own CNNs to it with some effort.</p>
+
+<p>The process of making a bitstream with the DPU inside is a whole nother problem that would
+require installing the entire Vivado/Vitis tool suite, so it’s nice that we can leverage
+some of the prebuilt resources.</p>
+
+<h2 id="building-stuff-with-the-kria-docker-images">Building stuff with the Kria docker images</h2>
+<p>I wasn’t expecting docker to be their approved way of running apps, but I think it works out.
+An advantage of Xilinx making everything possible in a container is the app can be built offline
+easily by just pulling the container on a host with qemu-user-static and binfmt setup to run
+aarch64 binaries. NVIDIA pushes users towards a similar flow on the Tegra platform, so maybe that’s
+just where the embedded AI stuff is going. That being said, containers are more of a convenience
+here, the options needed to make it work throw out any semblance of isolation or security.</p>
+
+<p>The demo is nice and all, but anyone following this post probably cares about making
+a custom application. The most “software developer” friendly way of doing this seems to be
+using the Xilinx Kria docker images, so let’s start there and rebuild the nlp-smartvision app.</p>
+<ul>
+  <li>First, I’m going to install <code class="language-plaintext highlighter-rouge">qemu-user-static</code> on my Ubuntu-based host machine. That
+combined with binfmt lets you run binaries from other architectures on your machine.
+Since the Kria modules have aarch64 CPUs, we need this to run the Kria containers.</li>
+  <li>Now if I do <code class="language-plaintext highlighter-rouge">docker run -it --rm xilinx/kria-developer:latest</code>, I should end up in the
+container and be able to use basic utilities like <code class="language-plaintext highlighter-rouge">ls</code>.</li>
+  <li>Inside the container, I’ll clone the app’s repo, https://github.com/Xilinx/nlp-smartvision,
+and do the usual cmake incantation. Thankfully this built without errors!</li>
+</ul>
+
+<h2 id="building-the-vitis-ai-container">Building the Vitis AI container</h2>
+<p>I’ll add this step here too since it’s just more busywork, but next I have to build the
+Vitis AI container. The tools for quantizing (more on that later) and a distribution of
+PyTorch is in here, which we’ll need for producing our own model weights later. There are
+some prebuilt Vitis AI containers on dockerhub, but if you’ve got an NVIDIA card you’ll need
+to build it yourself. Figures.</p>
+
+<p>Since the version of Vitis AI in the repos is v2.5, I’ll start by trying to build the container
+from the v2.5 tag.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/Xilinx/Vitis-AI.git --branch v2.5
+cd Vitis-AI/docker
+bash docker_build_gpu.sh
+</code></pre></div></div>
+<p>And here’s the first blocker. The base image used is no longer on docker hub. I changed it to
+a newer CUDA 11.8 version with a similar image, nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu18.04,
+but this <em>also</em> fails to build, hanging indefinitely when trying to install the PyTorch
+environment’s packages. It looks conda can’t find some of the Xilinx conda packages, perhaps
+they’re no longer hosted online or something, but at any rate I decided to pull the CPU-only
+Vitis AI v2.5 container at this point, which <em>is</em> on docker hub <a href="https://hub.docker.com/r/xilinx/vitis-ai-cpu/tags">here</a>.
+Simply doing <code class="language-plaintext highlighter-rouge">docker pull xilinx/vitis-ai-cpu:2.5.0</code> will get you that image.</p>
+
+<p>I would have liked if a newer version of Vitis AI was available for the Kria, but the Ubuntu PPA
+that provides those packages is still on 2.5. I started making my own dockerfile to compile v3.5
+of vitis-ai-runtime, vitis-ai-library, vvas-essentials, but it’s still WIP.</p>
+
+<h2 id="useful-links">Useful links</h2>
+<ul>
+  <li>Kria Docker https://github.com/Xilinx/kria-docker</li>
+  <li>Vitis AI v2.5 Docker image https://hub.docker.com/r/xilinx/vitis-ai-cpu/tags</li>
+  <li>NLP smartvision app https://github.com/Xilinx/nlp-smartvision</li>
+  <li>Kria prebuilt firmware https://github.com/Xilinx/kria-apps-firmware/tree/main/k26-dfx/2rp</li>
+</ul>
+
+  </div><a class="u-url" href="/xilinx/kv260/edge_ai/2023/09/28/kv260.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Kyle&#39;s code attic</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Kyle&#39;s code attic</li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/kyflores"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">kyflores</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Welcome to my page. I plan to use this site to document some of my projects around embedded systems, edge AI, computer vision, and a mix of other things.
+Frequently when scouring the internet for solutions to obscure problems, I find the real answer on someone&#39;s personal dev blog. I hope others can find the same value here.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

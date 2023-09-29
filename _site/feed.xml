@@ -1,17 +1,146 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2023-09-27T23:29:50-10:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Your awesome title</title><subtitle>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.</subtitle><entry><title type="html">Welcome to Jekyll!</title><link href="http://localhost:4000/jekyll/update/2023/09/27/welcome-to-jekyll.html" rel="alternate" type="text/html" title="Welcome to Jekyll!" /><published>2023-09-27T23:26:52-10:00</published><updated>2023-09-27T23:26:52-10:00</updated><id>http://localhost:4000/jekyll/update/2023/09/27/welcome-to-jekyll</id><content type="html" xml:base="http://localhost:4000/jekyll/update/2023/09/27/welcome-to-jekyll.html">&lt;p&gt;You’ll find this post in your &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_posts&lt;/code&gt; directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;jekyll serve&lt;/code&gt;, which launches a web server and auto-regenerates your site when a file is updated.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2023-10-01T12:24:48-10:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Kyle’s code attic</title><subtitle>Welcome to my page. I plan to use this site to document some of my projects around embedded systems, edge AI, computer vision, and a mix of other things.
+Frequently when scouring the internet for solutions to obscure problems, I find the real answer on someone&apos;s personal dev blog. I hope others can find the same value here.</subtitle><entry><title type="html">Setting up the Xilinx KV260</title><link href="http://localhost:4000/xilinx/kv260/edge_ai/2023/09/28/kv260.html" rel="alternate" type="text/html" title="Setting up the Xilinx KV260" /><published>2023-09-28T17:37:00-10:00</published><updated>2023-09-28T17:37:00-10:00</updated><id>http://localhost:4000/xilinx/kv260/edge_ai/2023/09/28/kv260</id><content type="html" xml:base="http://localhost:4000/xilinx/kv260/edge_ai/2023/09/28/kv260.html">&lt;h1 id=&quot;xilinx-kv260&quot;&gt;Xilinx KV260&lt;/h1&gt;
+&lt;p&gt;The KV260 is a relatively recent (2021) Xilinx product based on the Zynq Ultrascale
+family, chips with Cortex-A53 processors and a variable amount of logic elements.&lt;/p&gt;
 
-&lt;p&gt;Jekyll requires blog post files to be named according to the following format:&lt;/p&gt;
+&lt;p&gt;That being said, the Kria SOMs and their ecosystem are a bit unique compared to Xilinx’s
+historical offerings for a few reasons.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Premade Ubuntu LTS rootfs and Xilinx PPAs for additional software&lt;/li&gt;
+  &lt;li&gt;Premade FPGA firmware images with the DPU (that’s their ML accelerator IP) embedded&lt;/li&gt;
+  &lt;li&gt;Basic GPU and video codecs present&lt;/li&gt;
+  &lt;li&gt;Unusually low price of ~$250 for the developer kit, for a similar feature set to
+the more expensive Ultrascale+ EV&lt;/li&gt;
+&lt;/ul&gt;
 
-&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;YEAR-MONTH-DAY-title.MARKUP&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Although it can be used like any other Xilinx product with Vivado, Petalinux, etc, and
+probably could serve as a great platform for getting a decently sized FPGA cheaply, the
+Kria modules definitely feel more geared towards software developers trying to deploy
+ML vision models, or anyone more familiar with single board computers like the Pi.
+I’m not sure if it really competes with the Tegra family in practice since its compute
+throughput is much lower but it seems aimed at the same use case.&lt;/p&gt;
 
-&lt;p&gt;Where &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;YEAR&lt;/code&gt; is a four-digit number, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MONTH&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DAY&lt;/code&gt; are both two-digit numbers, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MARKUP&lt;/code&gt; is the file extension representing the format used in the file. After that, include the necessary front matter. Take a look at the source for this post to get an idea about how it works.&lt;/p&gt;
+&lt;p&gt;I bought a KV260 devkit when it released back in 2021 while thinking of all the interesting
+projects I could use it for, but as things often do, it went unused.
+Now that the Ryzen 7040 mobile chips with XDNA AI accelerators have come out, and AMD
+has &lt;a href=&quot;https://github.com/amd/RyzenAI-cloud-to-client-demo&quot;&gt;published some sample code&lt;/a&gt;, I’ve decided to dust off the Kria and try to make use of Vitis AI in anticipation of a Linux
+port of the Ryzen AI SDK (plz AMD).&lt;/p&gt;
 
-&lt;p&gt;Jekyll also offers powerful support for code snippets:&lt;/p&gt;
+&lt;p&gt;Anyway, to get started, pull up the &lt;a href=&quot;https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/index.html&quot;&gt;Kria docs&lt;/a&gt; in a tab, and read on.
+The Xilinx atlassian wiki shows up a lot in search results but looks out of sync on some points,
+so the linked site seems to be most up to date.&lt;/p&gt;
 
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;print_hi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Hi, &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;print_hi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;Tom&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;#=&amp;gt; prints &apos;Hi, Tom&apos; to STDOUT.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+&lt;h2 id=&quot;running-the-nlp-smartcamera-application&quot;&gt;Running the NLP smartcamera application&lt;/h2&gt;
+&lt;p&gt;Here are the condensed instructions to get up and running. The info here is all available in
+their official docs, but it’s scattered across several pages on different sites.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Flash the &lt;a href=&quot;https://ubuntu.com/download/amd&quot;&gt;KV260 ubuntu 22.04 image&lt;/a&gt; onto an SD card&lt;/li&gt;
+  &lt;li&gt;Login with User: ubuntu, Password: ubuntu. You’ll be asked to change it.&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo systemctl stop unattended-upgrades.service; sudo apt-get purge unattended-upgrades&lt;/code&gt;
+    &lt;ul&gt;
+      &lt;li&gt;If you leave this service enabled, you might be waiting a long time.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;systemctl restart systemd-resolved&lt;/code&gt; b/c DNS didn’t start for some reason.&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo snap install xlnx-config --classic --channel=2.x&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo xlnx-config.sysinit&lt;/code&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;https://xilinx.github.io/kria-apps-docs/kr260/build/html/docs/kria_starterkit_linux_boot.html&quot;&gt;If you get an error flashing kernel, just try again apparently…&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo apt install xlnx-firmware-kv260-nlp-smartvision&lt;/code&gt;
+    &lt;ul&gt;
+      &lt;li&gt;AFAICT &lt;a href=&quot;https://github.com/Xilinx/kria-apps-firmware/tree/main/k26-dfx/2rp&quot;&gt;this is the repo that package is built from&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://xilinx.github.io/kria-apps-docs/kv260/2022.1/build/html/docs/nlp-smartvision/docs/app_deployment_nlp.html&quot;&gt;Now following the instructions for the nlp-smartcamera…&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo xmutil listapps&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo xmutil unloadapp&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo xmutil loadapp kv260-nlp-smartvision&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo apt install docker.io&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo usermod -aG docker ubuntu&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;docker pull xilinx/nlp-smartvision:2022.1&lt;/code&gt; This container is &amp;gt;1GB.&lt;/li&gt;
+      &lt;li&gt;
+        &lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker run \
+    --env=&quot;DISPLAY&quot; \
+    -h &quot;xlnx-docker&quot; \
+    --env=&quot;XDG_SESSION_TYPE&quot; \
+    --net=host \
+    --privileged \
+    -v /tmp:/tmp \
+    -v /dev:/dev \
+    -v /sys:/sys \
+    -v /etc/vart.conf:/etc/vart.conf \
+    -v /lib/firmware/xilinx:/lib/firmware/xilinx \
+    -v /run:/run \
+    -it xilinx/nlp-smartvision:2022.1 bash
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;        &lt;/div&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Finally, get a random jpg online with some everyday objects in it, copy it
+to one of the paths mounted in the container like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/tmp&lt;/code&gt;and try:
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nlp-smartvision --test /tmp/pic.jpg yolov2_voc_pruned_0_77&lt;/code&gt; in the container!&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
 
-&lt;p&gt;Check out the &lt;a href=&quot;https://jekyllrb.com/docs/home&quot;&gt;Jekyll docs&lt;/a&gt; for more info on how to get the most out of Jekyll. File all bugs/feature requests at &lt;a href=&quot;https://github.com/jekyll/jekyll&quot;&gt;Jekyll’s GitHub repo&lt;/a&gt;. If you have questions, you can ask them on &lt;a href=&quot;https://talk.jekyllrb.com/&quot;&gt;Jekyll Talk&lt;/a&gt;.&lt;/p&gt;</content><author><name></name></author><category term="jekyll" /><category term="update" /><summary type="html">You’ll find this post in your _posts directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run jekyll serve, which launches a web server and auto-regenerates your site when a file is updated.</summary></entry></feed>
+&lt;p&gt;The purpose of loading one of Xilinx’s demo apps is to get the DPU, their ML accelerator
+into the SoC’s FPGA fabric. The DPU isn’t tied to a single model, so it should be possible
+to deploy our own CNNs to it with some effort.&lt;/p&gt;
+
+&lt;p&gt;The process of making a bitstream with the DPU inside is a whole nother problem that would
+require installing the entire Vivado/Vitis tool suite, so it’s nice that we can leverage
+some of the prebuilt resources.&lt;/p&gt;
+
+&lt;h2 id=&quot;building-stuff-with-the-kria-docker-images&quot;&gt;Building stuff with the Kria docker images&lt;/h2&gt;
+&lt;p&gt;I wasn’t expecting docker to be their approved way of running apps, but I think it works out.
+An advantage of Xilinx making everything possible in a container is the app can be built offline
+easily by just pulling the container on a host with qemu-user-static and binfmt setup to run
+aarch64 binaries. NVIDIA pushes users towards a similar flow on the Tegra platform, so maybe that’s
+just where the embedded AI stuff is going. That being said, containers are more of a convenience
+here, the options needed to make it work throw out any semblance of isolation or security.&lt;/p&gt;
+
+&lt;p&gt;The demo is nice and all, but anyone following this post probably cares about making
+a custom application. The most “software developer” friendly way of doing this seems to be
+using the Xilinx Kria docker images, so let’s start there and rebuild the nlp-smartvision app.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;First, I’m going to install &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;qemu-user-static&lt;/code&gt; on my Ubuntu-based host machine. That
+combined with binfmt lets you run binaries from other architectures on your machine.
+Since the Kria modules have aarch64 CPUs, we need this to run the Kria containers.&lt;/li&gt;
+  &lt;li&gt;Now if I do &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;docker run -it --rm xilinx/kria-developer:latest&lt;/code&gt;, I should end up in the
+container and be able to use basic utilities like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ls&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;Inside the container, I’ll clone the app’s repo, https://github.com/Xilinx/nlp-smartvision,
+and do the usual cmake incantation. Thankfully this built without errors!&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;building-the-vitis-ai-container&quot;&gt;Building the Vitis AI container&lt;/h2&gt;
+&lt;p&gt;I’ll add this step here too since it’s just more busywork, but next I have to build the
+Vitis AI container. The tools for quantizing (more on that later) and a distribution of
+PyTorch is in here, which we’ll need for producing our own model weights later. There are
+some prebuilt Vitis AI containers on dockerhub, but if you’ve got an NVIDIA card you’ll need
+to build it yourself. Figures.&lt;/p&gt;
+
+&lt;p&gt;Since the version of Vitis AI in the repos is v2.5, I’ll start by trying to build the container
+from the v2.5 tag.&lt;/p&gt;
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;git clone https://github.com/Xilinx/Vitis-AI.git --branch v2.5
+cd Vitis-AI/docker
+bash docker_build_gpu.sh
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;And here’s the first blocker. The base image used is no longer on docker hub. I changed it to
+a newer CUDA 11.8 version with a similar image, nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu18.04,
+but this &lt;em&gt;also&lt;/em&gt; fails to build, hanging indefinitely when trying to install the PyTorch
+environment’s packages. It looks conda can’t find some of the Xilinx conda packages, perhaps
+they’re no longer hosted online or something, but at any rate I decided to pull the CPU-only
+Vitis AI v2.5 container at this point, which &lt;em&gt;is&lt;/em&gt; on docker hub &lt;a href=&quot;https://hub.docker.com/r/xilinx/vitis-ai-cpu/tags&quot;&gt;here&lt;/a&gt;.
+Simply doing &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;docker pull xilinx/vitis-ai-cpu:2.5.0&lt;/code&gt; will get you that image.&lt;/p&gt;
+
+&lt;p&gt;I would have liked if a newer version of Vitis AI was available for the Kria, but the Ubuntu PPA
+that provides those packages is still on 2.5. I started making my own dockerfile to compile v3.5
+of vitis-ai-runtime, vitis-ai-library, vvas-essentials, but it’s still WIP.&lt;/p&gt;
+
+&lt;h2 id=&quot;useful-links&quot;&gt;Useful links&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;Kria Docker https://github.com/Xilinx/kria-docker&lt;/li&gt;
+  &lt;li&gt;Vitis AI v2.5 Docker image https://hub.docker.com/r/xilinx/vitis-ai-cpu/tags&lt;/li&gt;
+  &lt;li&gt;NLP smartvision app https://github.com/Xilinx/nlp-smartvision&lt;/li&gt;
+  &lt;li&gt;Kria prebuilt firmware https://github.com/Xilinx/kria-apps-firmware/tree/main/k26-dfx/2rp&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><category term="xilinx" /><category term="kv260" /><category term="edge_ai" /><summary type="html">Xilinx KV260 The KV260 is a relatively recent (2021) Xilinx product based on the Zynq Ultrascale family, chips with Cortex-A53 processors and a variable amount of logic elements.</summary></entry></feed>
