@@ -85,12 +85,26 @@ their official docs, but it’s scattered across several pages on different site
 <ul>
   <li>Flash the <a href="https://ubuntu.com/download/amd">KV260 ubuntu 22.04 image</a> onto an SD card</li>
   <li>Login with User: ubuntu, Password: ubuntu. You’ll be asked to change it.</li>
-  <li><code class="language-plaintext highlighter-rouge">sudo systemctl stop unattended-upgrades.service; sudo apt-get purge unattended-upgrades</code>
+  <li>I had some minor issues with the Ubuntu image’s out-of-box configuration
     <ul>
-      <li>If you leave this service enabled, you might be waiting a long time.</li>
+      <li>The unattended upgrades service takes a long time to run to the point that it
+can appear to be stuck.
+        <ul>
+          <li><code class="language-plaintext highlighter-rouge">sudo systemctl stop unattended-upgrades.service; sudo apt-get purge unattended-upgrades</code></li>
+        </ul>
+      </li>
+      <li>DNS didn’t start for some reason.
+        <ul>
+          <li><code class="language-plaintext highlighter-rouge">systemctl restart systemd-resolved</code></li>
+        </ul>
+      </li>
+      <li>The cloud init service waits for several minutes when booting
+        <ul>
+          <li><code class="language-plaintext highlighter-rouge">sudo touch /etc/cloud/cloud-init.disabled</code></li>
+        </ul>
+      </li>
     </ul>
   </li>
-  <li><code class="language-plaintext highlighter-rouge">systemctl restart systemd-resolved</code> b/c DNS didn’t start for some reason.</li>
   <li><code class="language-plaintext highlighter-rouge">sudo snap install xlnx-config --classic --channel=2.x</code></li>
   <li><code class="language-plaintext highlighter-rouge">sudo xlnx-config.sysinit</code>
     <ul>
@@ -164,7 +178,7 @@ and do the usual cmake incantation. Thankfully this built without errors!</li>
 <h2 id="building-the-vitis-ai-container">Building the Vitis AI container</h2>
 <p>I’ll add this step here too since it’s just more busywork, but next I have to build the
 Vitis AI container. The tools for quantizing (more on that later) and a distribution of
-PyTorch is in here, which we’ll need for producing our own model weights later. There are
+PyTorch is in here, which we’ll need for producing our own model weights. There are
 some prebuilt Vitis AI containers on dockerhub, but if you’ve got an NVIDIA card you’ll need
 to build it yourself. Figures.</p>
 
@@ -186,7 +200,7 @@ Simply doing <code class="language-plaintext highlighter-rouge">docker pull xili
 that provides those packages is still on 2.5. I started making my own dockerfile to compile v3.5
 of vitis-ai-runtime, vitis-ai-library, vvas-essentials, but it’s still WIP.</p>
 
-<p>Anyway, we’ll leave it there for now and continue on the next post.</p>
+<p>Anyway, we’ll leave it there for now and continue in the next post.</p>
 
 <h2 id="useful-links">Useful links</h2>
 <ul>

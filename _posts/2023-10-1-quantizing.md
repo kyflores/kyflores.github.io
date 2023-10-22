@@ -14,7 +14,7 @@ but you'll eventually need to create your own if nothing up there matches your n
 The model I'm going to be quantizing is a classifier with 2 convs and 2 linear layers trained
 on FashionMNIST, a convenient dataset that's readily available through torchvision. To be clear,
 it's a minimal example to show the process, and small enough to be trained + quantized on a CPU
-in a few minutes. You can find the model training code [here](TODO) in one of my repos.
+in a few minutes. You can find the model training code [here](https://github.com/kyflores/kv260-vitis-flow/blob/main/fmnist_train.py) in one of my repos.
 
 After training you should see ~90% accuracy, and end up with at least a `fmnist.pt` set of weights.
 This is about where you'll be starting if you're following along with a custom model. Up to this point,
@@ -49,7 +49,7 @@ seems like some packages (and even the base image) are no longer available, whic
 since that image is not even 2 years old.
 
 ### Inspecting
-I'll be referring to [my repo]() again here, specifically `fminst_quantize_pt1.py` right now.
+I'll be referring to [my repo](https://github.com/kyflores/kv260-vitis-flow) again here, specifically `fminst_quantize_pt1.py` right now.
 
 The first step, inspecting the model, lets us know if the torch model we want to quantize can
 be mapped to the DPU's supported operations, and what outstanding operators will end up mapped
@@ -113,8 +113,20 @@ tuple passed in under it should match its arguments. I modeled mine after [Xilin
 but their `evaluate` is reused in several ways. Also, `fast_finetune` is optional; running it can improve
 performance, but it can be skipped entirely if you've found it makes no difference.
 
+Finally, we just need to evaluate the model with our sample calibration dataset, and an easy way to do this
+is recycle a dataloader from your training code. I was stuck at this point for awhile; I had forgotten to
+evaluate the model at the end, thinking the evaluations `fast_finetune` were enough. All the expected
+output files existed, but were "empty" or filled with default values, which was confusing.
 
 ### Exporting
+After quantizing + optional finetuning, the next step is to export the model. Admittedly, I don't
+have much of an idea of what happens in this step, or why it has certain requirements, but all we
+need to do is build another `torch_quantizer` with the first arg (mode) set to `test`, then
+evaluate it once with any data of the correct shape with a batch size of 1.
+
+I got confused here for awhile because it seems to work without explicitly passing in the quantized
+to the new `torch_quantizer` instance, but AFAICT it assumes the outputs from the last step are in
+the `quantize_result/` directory, although there must be some options to change this.
 
 ## Compiling
 Once we've got our *.xmodel from the export step, the last thing to do is compile for a specific
@@ -123,7 +135,7 @@ device architecture, in this case the Kria's DPU B3136.
 First go and grab the DPU fingerprint from the Kria board if you don't have it already.
 You can run `xdputil query` _INSIDE_ the kria-runtime container after loading any of the Xilinx apps
 like smartvision with a DPU instantiated _OUTSIDE_ the container with `xmutil loadapp kv260-nlp-smartvision`
-For some reason I had to install numpy for xputil to work.
+For some reason I had to install numpy for xputil to work, not sure why it wasn't in the base image.
 In the output you should see this line, or something like it if you're not on the Kria.
 ```
 "fingerprint":"0x101000016010406"

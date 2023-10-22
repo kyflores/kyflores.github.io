@@ -53,89 +53,171 @@ was to generate our own model files for the Xilinx DPU. Xilinx has many <a href=
 but you’ll eventually need to create your own if nothing up there matches your needs.</p>
 
 <h2 id="fashionmnist">FashionMNIST</h2>
-<p>First let’s look at a really basic classifier.
-This is a toy example of training code for a two-conv classifier model for FashionMNIST.
-Everything is in this one file, just install torch, torchvision, and onnx first.
-FashionMNIST will be downloaded for you beside this script.
-You can get the code for it <a href="/assets/fmnist_onefile.py">here</a></p>
+<p>The model I’m going to be quantizing is a classifier with 2 convs and 2 linear layers trained
+on FashionMNIST, a convenient dataset that’s readily available through torchvision. To be clear,
+it’s a minimal example to show the process, and small enough to be trained + quantized on a CPU
+in a few minutes. You can find the model training code <a href="https://github.com/kyflores/kv260-vitis-flow/blob/main/fmnist_train.py">here</a> in one of my repos.</p>
 
-<p>After this script trains the model, it will export <code class="language-plaintext highlighter-rouge">fmnist.onnx</code> for us, a file describing
-its structure and containing its weights and biases. Remember this file, because we’re
-going to hand it to Vitis AI to quantize later.</p>
+<p>After training you should see ~90% accuracy, and end up with at least a <code class="language-plaintext highlighter-rouge">fmnist.pt</code> set of weights.
+This is about where you’ll be starting if you’re following along with a custom model. Up to this point,
+there shouldn’t be any requirement to use the special Vitis AI docker containers or even match their
+PyTorch version.</p>
 
-<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1">#!/usr/bin/python
-</span><span class="kn">import</span> <span class="nn">torch</span>
-<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="n">nn</span>
-<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="n">F</span>
-<span class="kn">import</span> <span class="nn">torch.utils.data</span> <span class="k">as</span> <span class="n">tud</span>
-<span class="kn">import</span> <span class="nn">torchvision.transforms.functional</span> <span class="k">as</span> <span class="n">tvf</span>
-<span class="kn">import</span> <span class="nn">torchvision.datasets</span> <span class="k">as</span> <span class="n">tds</span>
+<h2 id="quantization">Quantization</h2>
+<p>To create a model for the Xilinx DPU, we need a quantized set of weights. In short, quantization
+is the process of converting a model whose weights are in 32bit float precision down to one
+with only 8bit integer precision. That’s <em>a lot</em> less precision, but also a much smaller range.
+After all, int8’s can only be -128 to 127! My shallow understanding of the quantization process
+is that it will need to find some additional offsets and scale factors for regions of the
+network that allow it to be evaluated without saturating the int8’s, but to do so it needs to
+see some representative examples of what might come in at test time.</p>
 
-<span class="n">device</span> <span class="o">=</span> <span class="s">'cuda'</span> <span class="k">if</span> <span class="n">torch</span><span class="p">.</span><span class="n">cuda</span><span class="p">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s">'cpu'</span>
-<span class="n">dataset_root</span><span class="o">=</span><span class="s">'./datasets'</span><span class="p">;</span>
-<span class="n">batchsize</span> <span class="o">=</span> <span class="mi">32</span>
-<span class="n">epochs</span> <span class="o">=</span> <span class="mi">10</span>
-<span class="n">lr</span> <span class="o">=</span> <span class="mf">0.001</span>
+<p>Now we’re going to need those Xilinx docker images.
+On your host/workstation…</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Get Vitis-AI v2.5, which I'll be just calling vitis
+docker pull xilinx/vitis-ai-cpu:2.5
+</code></pre></div></div>
+<p>On the Kria…</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Get Kria runtime based on Vitis runtime/library v2.5, which I'll call kria-runtime
+docker pull xilinx/kria-runtime:2022.1
+</code></pre></div></div>
+<p>A note here about versions; I began with the Vitis v2.5 host containers, but the outputs from
+newer versions like v3.5 appear to be compatible with kria-runtime. If you want CUDA support,
+you need to <a href="https://github.com/Xilinx/Vitis-AI/tree/master/docker">build it yourself</a> though.
+I also tried to rebuild v2.5’s container with GPU support, but couldn’t get the old image to build…
+seems like some packages (and even the base image) are no longer available, which is surprising
+since that image is not even 2 years old.</p>
 
-<span class="n">mnist_train</span> <span class="o">=</span> <span class="n">tds</span><span class="p">.</span><span class="n">FashionMNIST</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="n">dataset_root</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">train</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">tvf</span><span class="p">.</span><span class="n">pil_to_tensor</span><span class="p">)</span>
-<span class="n">mnist_eval</span> <span class="o">=</span> <span class="n">tds</span><span class="p">.</span><span class="n">FashionMNIST</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="n">dataset_root</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">train</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">tvf</span><span class="p">.</span><span class="n">pil_to_tensor</span><span class="p">)</span>
-<span class="n">train_loader</span> <span class="o">=</span> <span class="n">tud</span><span class="p">.</span><span class="n">DataLoader</span><span class="p">(</span><span class="n">mnist_train</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">batchsize</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-<span class="n">val_loader</span> <span class="o">=</span> <span class="n">tud</span><span class="p">.</span><span class="n">DataLoader</span><span class="p">(</span><span class="n">mnist_eval</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">batchsize</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<h3 id="inspecting">Inspecting</h3>
+<p>I’ll be referring to <a href="https://github.com/kyflores/kv260-vitis-flow">my repo</a> again here, specifically <code class="language-plaintext highlighter-rouge">fminst_quantize_pt1.py</code> right now.</p>
 
-<span class="k">class</span> <span class="nc">MyCnn</span><span class="p">(</span><span class="n">nn</span><span class="p">.</span><span class="n">Module</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out_sz</span><span class="p">,</span> <span class="n">ch</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">().</span><span class="n">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="p">.</span><span class="n">channels</span> <span class="o">=</span> <span class="n">ch</span>
-        <span class="bp">self</span><span class="p">.</span><span class="n">out_sz</span> <span class="o">=</span> <span class="n">out_sz</span>
-        <span class="bp">self</span><span class="p">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="p">.</span><span class="n">ReLU</span><span class="p">()</span>
-        <span class="bp">self</span><span class="p">.</span><span class="n">maxpool</span> <span class="o">=</span> <span class="n">nn</span><span class="p">.</span><span class="n">MaxPool2d</span><span class="p">(</span><span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-        <span class="bp">self</span><span class="p">.</span><span class="n">conv1_1</span> <span class="o">=</span> <span class="n">nn</span><span class="p">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ch</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="bp">self</span><span class="p">.</span><span class="n">conv1_2</span> <span class="o">=</span> <span class="n">nn</span><span class="p">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="n">ch</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="bp">self</span><span class="p">.</span><span class="n">lin1</span> <span class="o">=</span> <span class="n">nn</span><span class="p">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">ch</span><span class="o">*</span><span class="mi">2</span> <span class="o">*</span> <span class="mi">14</span> <span class="o">*</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
-        <span class="bp">self</span><span class="p">.</span><span class="n">lin2</span> <span class="o">=</span> <span class="n">nn</span><span class="p">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="n">out_sz</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">conv1_1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">conv1_2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">maxpool</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="p">.</span><span class="n">channels</span><span class="o">*</span><span class="mi">2</span> <span class="o">*</span> <span class="mi">14</span> <span class="o">*</span> <span class="mi">14</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">lin1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">lin2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">x</span>
+<p>The first step, inspecting the model, lets us know if the torch model we want to quantize can
+be mapped to the DPU’s supported operations, and what outstanding operators will end up mapped
+to the CPU runner instead. We need two things to inspect: a dummy tensor matching the shape of
+our input data, and the name of the DPU we’re going to be compiling for. The dummy input is easy,
+but to get the DPU name, you can run <code class="language-plaintext highlighter-rouge">xdputil query</code> on the Kria (in the container) after loading
+the bitstream/app with <code class="language-plaintext highlighter-rouge">xmutil load &lt;appname&gt;</code> (outside of the container).</p>
 
-<span class="n">model</span> <span class="o">=</span> <span class="n">MyCnn</span><span class="p">(</span><span class="n">out_sz</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">ch</span><span class="o">=</span><span class="mi">16</span><span class="p">).</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
-<span class="n">optimizer</span> <span class="o">=</span> <span class="n">torch</span><span class="p">.</span><span class="n">optim</span><span class="p">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="p">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="p">)</span>
-<span class="n">lossfn</span> <span class="o">=</span> <span class="n">nn</span><span class="p">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
-    <span class="k">for</span> <span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="ow">in</span> <span class="n">train_loader</span><span class="p">:</span>
-        <span class="n">optimizer</span><span class="p">.</span><span class="n">zero_grad</span><span class="p">()</span>
-        <span class="n">targets</span> <span class="o">=</span> <span class="n">target</span><span class="p">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
-        <span class="n">outs</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">images</span><span class="p">.</span><span class="nb">float</span><span class="p">().</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">))</span>
-        <span class="n">lossfn</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">targets</span><span class="p">).</span><span class="n">backward</span><span class="p">()</span>
-        <span class="n">optimizer</span><span class="p">.</span><span class="n">step</span><span class="p">()</span>
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">target</span> <span class="o">=</span> <span class="s">"DPUCZDX8G_ISA1_B3136"</span> <span class="c1"># (or 0x101000016010406)
+</span><span class="n">inspector</span> <span class="o">=</span> <span class="n">Inspector</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+<span class="n">dummy_input</span> <span class="o">=</span> <span class="n">torch</span><span class="p">.</span><span class="n">randn</span><span class="p">(</span><span class="n">batchsize</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">28</span><span class="p">,</span> <span class="mi">28</span><span class="p">).</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">).</span><span class="nb">float</span><span class="p">()</span>
+<span class="n">inspector</span><span class="p">.</span><span class="n">inspect</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="p">(</span><span class="n">dummy_input</span><span class="p">,),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s">"inspect"</span><span class="p">,</span> <span class="n">image_format</span><span class="o">=</span><span class="s">"png"</span><span class="p">)</span></code></pre></figure>
 
-    <span class="n">losses</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="ow">in</span> <span class="n">val_loader</span><span class="p">:</span>
-        <span class="k">with</span> <span class="n">torch</span><span class="p">.</span><span class="n">no_grad</span><span class="p">():</span>
-            <span class="n">targets</span> <span class="o">=</span> <span class="n">target</span><span class="p">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
-            <span class="n">outs</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">images</span><span class="p">.</span><span class="nb">float</span><span class="p">().</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">))</span>
-            <span class="n">losses</span><span class="p">.</span><span class="n">append</span><span class="p">(</span><span class="n">lossfn</span><span class="p">(</span><span class="n">outs</span><span class="p">,</span> <span class="n">targets</span><span class="p">))</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">"Epoch: {}, eval loss: {}"</span><span class="p">.</span><span class="nb">format</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">torch</span><span class="p">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">losses</span><span class="p">).</span><span class="n">mean</span><span class="p">().</span><span class="n">item</span><span class="p">()))</span>
+<p>Along with a ton of text output, you’ll get a visual graph of the model’s operators. My simple
+classifier has this graph for example.
+<img src="/assets/inspect_DPUCZDX8G_ISA1_B3136.png" alt="Classifier compute graph" width="500" />
+If every node says <code class="language-plaintext highlighter-rouge">assigned device:dpu</code>, you’re good to go, but if not you’ll have to go back
+and reconfigure your model to adhere to the <a href="https://docs.xilinx.com/r/en-US/pg338-dpu/Introduction?tocId=4lq1FtJ078vxzAJQVMkl_g">supported operators</a>.
+If the github issues are anything to go by, a common problem was support for different activation functions.
+The operators table shows that only ReLU, ReLU6, LeakyReLU, Hard Sigmoid, and Hard Swish are allowed,
+which notably omits the SiLU activation favored by the newer YOLO variants, or GeLU as popularized by BERT.
+I’m not sure if it can be changed in place, but from my relatively shallow knowledge of deep learning,
+I’d expect that the network would have to be retrained, or at least finetuned to accomodate a change
+in activations.</p>
 
-<span class="n">correct</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">with</span> <span class="n">torch</span><span class="p">.</span><span class="n">no_grad</span><span class="p">():</span>
-    <span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">mnist_eval</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">F</span><span class="p">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">model</span><span class="p">(</span><span class="n">image</span><span class="p">.</span><span class="nb">float</span><span class="p">().</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">).</span><span class="n">argmax</span><span class="p">()</span> <span class="o">==</span> <span class="n">target</span><span class="p">:</span>
-            <span class="n">correct</span> <span class="o">+=</span> <span class="mi">1</span>
+<h3 id="calbration">Calbration</h3>
+<p>Once you’ve got something that you know will map nicely to the DPU, you can finetune the network
+using Xilinx’s quantizing API. Specifically, this thing:</p>
 
-    <span class="k">print</span><span class="p">(</span><span class="s">"{:.2f}% correct"</span><span class="p">.</span><span class="nb">format</span><span class="p">(</span><span class="mi">100</span><span class="o">*</span><span class="n">correct</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">mnist_eval</span><span class="p">)))</span>
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">quantizer</span> <span class="o">=</span> <span class="n">torch_quantizer</span><span class="p">(</span>
+    <span class="s">'calib'</span><span class="p">,</span>
+    <span class="n">model</span><span class="p">,</span>
+    <span class="n">dummy_input</span><span class="p">,</span>
+    <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+    <span class="n">quant_config_file</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
 
-<span class="n">torch</span><span class="p">.</span><span class="n">onnx</span><span class="p">.</span><span class="n">export</span><span class="p">(</span>
-    <span class="n">model</span><span class="p">,</span><span class="n">torch</span><span class="p">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">28</span><span class="p">,</span> <span class="mi">28</span><span class="p">).</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span><span class="s">"fmnist.onnx"</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-    <span class="n">input_names</span><span class="o">=</span><span class="p">[</span><span class="s">"input0"</span><span class="p">],</span>
-    <span class="n">output_names</span><span class="o">=</span><span class="p">[</span><span class="s">"output0"</span><span class="p">])</span></code></pre></figure>
+<span class="n">quantizer</span><span class="p">.</span><span class="n">fast_finetune</span><span class="p">(</span>
+    <span class="n">evaluate</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">quantizer</span><span class="p">.</span><span class="n">quant_model</span><span class="p">,</span> <span class="n">val_loader</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="n">loss</span><span class="p">,</span> <span class="n">correct</span> <span class="o">=</span> <span class="n">evaluate</span><span class="p">(</span><span class="n">quantizer</span><span class="p">.</span><span class="n">quant_model</span><span class="p">,</span> <span class="n">val_loader</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">)</span></code></pre></figure>
+
+<p>When constructing the <code class="language-plaintext highlighter-rouge">torch_quantizer</code>, we tell it what mode to operate in (‘calib’), give it our
+<em>PyTorch model object</em>, the same dummy input as passed to the inspector, and the compute device to run
+on. It’s a bit odd, but there are several other steps to perform after that use this same function with
+a different operation mode parameter. Personally I think it would have been clearer to just have separate
+classes, but I digress.</p>
+
+<p>Going a bit out of order, in  <code class="language-plaintext highlighter-rouge">fast_finetune</code>, <code class="language-plaintext highlighter-rouge">val_loader</code> is a dataloader for handling your calibration
+dataset. The calibration set can be significantly smaller than either your training or evaluation sets,
+and IIRC the recommendation was in the range of 100-1000 images, as long as they’re representative of
+what the model will see in practice.</p>
+
+<p>I’m a bit unclear on what’s strictly required for <code class="language-plaintext highlighter-rouge">fast_finetune</code> to work though; it cannot be called
+with no arguments but <a href="https://docs.xilinx.com/r/1.3-English/ug1414-vitis-ai/Module-Partial-Quantization">doc pages</a> and <a href="https://github.com/Xilinx/Vitis-AI/issues/787">replies by Xilinx engineers</a>, also say we don’t need labels or a loss function, just a way to call forward().
+Anyway, this <code class="language-plaintext highlighter-rouge">evaluate</code> function needs to run a forward pass of the model over your input data, and the
+tuple passed in under it should match its arguments. I modeled mine after <a href="https://github.com/Xilinx/Vitis-AI/blob/master/src/vai_quantizer/vai_q_pytorch/example/resnet18_quant.py">Xilinx’s resnet example</a>,
+but their <code class="language-plaintext highlighter-rouge">evaluate</code> is reused in several ways. Also, <code class="language-plaintext highlighter-rouge">fast_finetune</code> is optional; running it can improve
+performance, but it can be skipped entirely if you’ve found it makes no difference.</p>
+
+<p>Finally, we just need to evaluate the model with our sample calibration dataset, and an easy way to do this
+is recycle a dataloader from your training code. I was stuck at this point for awhile; I had forgotten to
+evaluate the model at the end, thinking the evaluations <code class="language-plaintext highlighter-rouge">fast_finetune</code> were enough. All the expected
+output files existed, but were “empty” or filled with default values, which was confusing.</p>
+
+<h3 id="exporting">Exporting</h3>
+<p>After quantizing + optional finetuning, the next step is to export the model. Admittedly, I don’t
+have much of an idea of what happens in this step, or why it has certain requirements, but all we
+need to do is build another <code class="language-plaintext highlighter-rouge">torch_quantizer</code> with the first arg (mode) set to <code class="language-plaintext highlighter-rouge">test</code>, then
+evaluate it once with any data of the correct shape with a batch size of 1.</p>
+
+<p>I got confused here for awhile because it seems to work without explicitly passing in the quantized
+to the new <code class="language-plaintext highlighter-rouge">torch_quantizer</code> instance, but AFAICT it assumes the outputs from the last step are in
+the <code class="language-plaintext highlighter-rouge">quantize_result/</code> directory, although there must be some options to change this.</p>
+
+<h2 id="compiling">Compiling</h2>
+<p>Once we’ve got our *.xmodel from the export step, the last thing to do is compile for a specific
+device architecture, in this case the Kria’s DPU B3136.</p>
+
+<p>First go and grab the DPU fingerprint from the Kria board if you don’t have it already.
+You can run <code class="language-plaintext highlighter-rouge">xdputil query</code> <em>INSIDE</em> the kria-runtime container after loading any of the Xilinx apps
+like smartvision with a DPU instantiated <em>OUTSIDE</em> the container with <code class="language-plaintext highlighter-rouge">xmutil loadapp kv260-nlp-smartvision</code>
+For some reason I had to install numpy for xputil to work, not sure why it wasn’t in the base image.
+In the output you should see this line, or something like it if you’re not on the Kria.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"fingerprint":"0x101000016010406"
+</code></pre></div></div>
+<p>Make a file called <code class="language-plaintext highlighter-rouge">arch.json</code> with that as the only entry; we’ll need it in just a sec.</p>
+
+<p><code class="language-plaintext highlighter-rouge">arch.json</code></p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+    "fingerprint":"0x101000016010406"
+}
+</code></pre></div></div>
+
+<p>Back in the Vitis host container, we just need to invoke the compiler with our model and DPU arch.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>vai_c_xir -x quantize_result/MyCnn_int.xmodel -a arch.json
+</code></pre></div></div>
+<p>After that you should have a <code class="language-plaintext highlighter-rouge">deploy.xmodel</code>, and <code class="language-plaintext highlighter-rouge">md5sum.txt</code> in your working directory if everything
+goes smoothly. If you aren’t using PyTorch, you should invoke a different vai_c such as <code class="language-plaintext highlighter-rouge">vai_c_tensorflow2</code></p>
+
+<p>The last thing we need to do is make sure those weights work, so go ahead and <code class="language-plaintext highlighter-rouge">scp</code> then back to the kria,
+and start an instance of kria-runtime (again) to use xdputil.
+Finally <code class="language-plaintext highlighter-rouge">xdputil xmodel deploy.xmodel -l</code> should show one subgraph. We can then benchmark it.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>root@xlnx-docker:/run/host/Documents/quantize_result# xdputil benchmark deploy.xmodel 2
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I1003 23:15:44.922972   665 test_dpu_runner_mt.cpp:474] shuffle results for batch...
+I1003 23:15:44.923450   665 performance_test.hpp:73] 0% ...
+I1003 23:15:50.923636   665 performance_test.hpp:76] 10% ...
+I1003 23:15:56.923797   665 performance_test.hpp:76] 20% ...
+I1003 23:16:02.923959   665 performance_test.hpp:76] 30% ...
+I1003 23:16:08.924115   665 performance_test.hpp:76] 40% ...
+I1003 23:16:14.924278   665 performance_test.hpp:76] 50% ...
+I1003 23:16:20.924437   665 performance_test.hpp:76] 60% ...
+I1003 23:16:26.924599   665 performance_test.hpp:76] 70% ...
+I1003 23:16:32.924762   665 performance_test.hpp:76] 80% ...
+I1003 23:16:38.924928   665 performance_test.hpp:76] 90% ...
+I1003 23:16:44.925087   665 performance_test.hpp:76] 100% ...
+I1003 23:16:44.925154   665 performance_test.hpp:79] stop and waiting for all threads terminated....
+I1003 23:16:44.925801   665 performance_test.hpp:85] thread-0 processes 199424 frames
+I1003 23:16:44.925851   665 performance_test.hpp:85] thread-1 processes 199455 frames
+I1003 23:16:44.925873   665 performance_test.hpp:93] it takes 697 us for shutdown
+I1003 23:16:44.925894   665 performance_test.hpp:94] FPS= 6647.71 number_of_frames= 398879 time= 60.0024 seconds.
+I1003 23:16:44.925951   665 performance_test.hpp:96] BYEBYE
+Test PASS.
+</code></pre></div></div>
+
+<p>All that work and we’re <em>still</em> not done. Next time we’ll add a cpp utility to run inference on an image.</p>
 
 <h2 id="model-inspector">Model inspector</h2>
 <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DPU Arch":"DPUCZDX8G_ISA1_B3136"
